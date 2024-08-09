@@ -1,4 +1,6 @@
 package trixi.smartform.module.villagePart;
 
-public class VillagePartRepository {
+import org.springframework.data.jpa.repository.JpaRepository;
+
+public interface VillagePartRepository extends JpaRepository<VillagePart, Long> {
 }
