@@ -1,7 +1,7 @@
 package trixi.smartform.module.village;
 
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -10,7 +10,7 @@ public class VillageService {
 
     private final VillageRepository villageRepository;
 
-    public void saveVillage(Village village) {
+    public void saveVillage(@Valid Village village) {
         villageRepository.save(village);
     }
 }
