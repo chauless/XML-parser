@@ -19,6 +19,7 @@ public class Village {
     private Long id;
 
     @NotNull(message = "Village code cannot be null")
+    @Column(unique = true)
     private Long code;
 
     @NotBlank(message = "Village name cannot be blank")
