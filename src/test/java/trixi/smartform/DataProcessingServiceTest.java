@@ -6,15 +6,18 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.w3c.dom.Document;
-import org.w3c.dom.Element;
-import org.w3c.dom.Node;
-import org.w3c.dom.NodeList;
+import org.xml.sax.InputSource;
 import trixi.smartform.module.village.Village;
 import trixi.smartform.module.village.VillageService;
 import trixi.smartform.module.villagePart.VillagePart;
 import trixi.smartform.module.villagePart.VillagePartService;
 import trixi.smartform.service.DataProcessingService;
 
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
+import java.io.StringReader;
+
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.*;
 
 class DataProcessingServiceTest {
@@ -34,54 +37,48 @@ class DataProcessingServiceTest {
     }
 
     @Test
-    void processAndSaveData_shouldProcessVillageAndParts() {
-        Document document = mock(Document.class);
-        NodeList villageNodeList = mock(NodeList.class);
-        NodeList villagePartNodeList = mock(NodeList.class);
-        Element villageElement = mock(Element.class);
-        Element villagePartElement = mock(Element.class);
-        Node villageCodeNode = mock(Node.class);
-        Node villageNameNode = mock(Node.class);
-        Node villagePartCodeNode = mock(Node.class);
-        Node villagePartNameNode = mock(Node.class);
+    void processAndSaveData_shouldProcessVillageAndParts() throws Exception {
+        String xmlContent = "<root>" +
+                "<vf:Obec><obi:Kod>123</obi:Kod><obi:Nazev>VillageName</obi:Nazev></vf:Obec>" +
+                "<vf:CastObce><coi:Kod>456</coi:Kod><coi:Nazev>VillagePartName</coi:Nazev></vf:CastObce>" +
+                "</root>";
 
-        when(document.getElementsByTagName("vf:Obec")).thenReturn(villageNodeList);
-        when(villageNodeList.getLength()).thenReturn(1);
-        when(villageNodeList.item(0)).thenReturn(villageElement);
-        when(villageElement.getElementsByTagName("obi:Kod")).thenReturn(mock(NodeList.class));
-        when(villageElement.getElementsByTagName("obi:Nazev")).thenReturn(mock(NodeList.class));
+        Document document = convertStringToDocument(xmlContent);
 
-        when(villageElement.getElementsByTagName("obi:Kod").item(0)).thenReturn(villageCodeNode);
-        when(villageElement.getElementsByTagName("obi:Nazev").item(0)).thenReturn(villageNameNode);
-        when(villageCodeNode.getTextContent()).thenReturn("123456");
-        when(villageNameNode.getTextContent()).thenReturn("Test Village");
+        doNothing().when(villageService).saveVillage(any(Village.class));
+        doNothing().when(villagePartService).saveVillagePart(any(VillagePart.class));
 
-        when(document.getElementsByTagName("vf:CastObce")).thenReturn(villagePartNodeList);
-        when(villagePartNodeList.getLength()).thenReturn(1);
-        when(villagePartNodeList.item(0)).thenReturn(villagePartElement);
-
-        when(villagePartElement.getElementsByTagName("coi:Kod").item(0)).thenReturn(villagePartCodeNode);
-        when(villagePartElement.getElementsByTagName("coi:Nazev").item(0)).thenReturn(villagePartNameNode);
-        when(villagePartCodeNode.getTextContent()).thenReturn("654321");
-        when(villagePartNameNode.getTextContent()).thenReturn("Test Village Part");
-
-        dataProcessingService.processAndSaveData(document);
+        dataProcessingService.processAndSaveData(xmlContent);
 
         verify(villageService, times(1)).saveVillage(any(Village.class));
         verify(villagePartService, times(1)).saveVillagePart(any(VillagePart.class));
     }
 
     @Test
-    void processAndSaveData_shouldWarnIfNoVillageFound() {
-        Document document = mock(Document.class);
-        NodeList villageNodeList = mock(NodeList.class);
+    void processAndSaveData_shouldHandleNoVillageData() throws Exception {
+        String xmlContent = "<root><vf:NoObec></vf:NoObec></root>";
 
-        when(document.getElementsByTagName("vf:Obec")).thenReturn(villageNodeList);
-        when(villageNodeList.getLength()).thenReturn(0);
-
-        dataProcessingService.processAndSaveData(document);
+        dataProcessingService.processAndSaveData(xmlContent);
 
         verify(villageService, never()).saveVillage(any(Village.class));
         verify(villagePartService, never()).saveVillagePart(any(VillagePart.class));
+    }
+
+    @Test
+    void processAndSaveData_shouldThrowExceptionForInvalidXml() {
+        String invalidXmlContent = "<root><vf:Obec><obi:Kod>123</obi:Kod>";
+
+        assertThrows(RuntimeException.class, () -> {
+            dataProcessingService.processAndSaveData(invalidXmlContent);
+        });
+
+        verify(villageService, never()).saveVillage(any(Village.class));
+        verify(villagePartService, never()).saveVillagePart(any(VillagePart.class));
+    }
+
+    private Document convertStringToDocument(String xmlStr) throws Exception {
+        DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+        DocumentBuilder builder = factory.newDocumentBuilder();
+        return builder.parse(new InputSource(new StringReader(xmlStr)));
     }
 }
