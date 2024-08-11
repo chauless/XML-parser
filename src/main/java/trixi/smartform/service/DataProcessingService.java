@@ -2,14 +2,20 @@ package trixi.smartform.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Service;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.NodeList;
+import org.xml.sax.InputSource;
 import trixi.smartform.module.village.Village;
 import trixi.smartform.module.village.VillageService;
 import trixi.smartform.module.villagePart.VillagePart;
 import trixi.smartform.module.villagePart.VillagePartService;
+
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
+import java.io.StringReader;
 
 @Service
 @RequiredArgsConstructor
@@ -19,9 +25,10 @@ public class DataProcessingService {
     private final VillageService villageService;
     private final VillagePartService villagePartService;
 
-    public void processAndSaveData(Document document) {
-        log.info("Starting data processing.");
-
+    @KafkaListener(topics = "downloaded_data", groupId = "group_id")
+    public void processAndSaveData(String xmlContent) {
+        log.info("Received data from Kafka.");
+        Document document = convertStringToDocument(xmlContent);
         Village village = extractVillage(document);
         if (village != null) {
             villageService.saveVillage(village);
@@ -32,7 +39,6 @@ public class DataProcessingService {
         } else {
             log.warn("No village data found in the document.");
         }
-
         log.info("Data processing completed.");
     }
 
@@ -65,4 +71,16 @@ public class DataProcessingService {
             log.info("Saved village part: {} with code {}", villagePart.getName(), villagePart.getCode());
         }
     }
+
+    private Document convertStringToDocument(String xmlStr) {
+        try {
+            DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+            DocumentBuilder builder = factory.newDocumentBuilder();
+            return builder.parse(new InputSource(new StringReader(xmlStr)));
+        } catch (Exception e) {
+            log.error("Error converting string to document", e);
+            throw new RuntimeException(e);
+        }
+    }
+
 }
