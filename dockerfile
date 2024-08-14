@@ -1,3 +1,12 @@
-FROM openjdk:17-jdk-slim
-COPY target/smartform-0.0.1-SNAPSHOT.jar smartform.jar
-ENTRYPOINT ["java", "-jar", "/smartform.jar"]
+FROM maven:3.8.6-openjdk-18-slim
+
+WORKDIR /app
+
+COPY pom.xml .
+RUN mvn clean package -DskipTests
+
+COPY target/smartform-0.0.1-SNAPSHOT.jar /app/smartform.jar
+
+EXPOSE 8081
+
+ENTRYPOINT ["java", "-jar", "smartform.jar"]
